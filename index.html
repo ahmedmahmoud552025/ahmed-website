@@ -64,6 +64,39 @@ body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg-d
 /* entrance */
 @keyframes enter{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
 .card,.btn{animation:enter .45s ease both}
+
+/* customized toggle (button with icon + label) */
+.toggle{
+  position:fixed;
+  top:12px;
+  right:12px;
+  background:#fff;
+  color:#000;
+  border:0;
+  padding:8px 12px;
+  border-radius:999px;
+  font-weight:700;
+  z-index:9999;
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  box-shadow:0 6px 18px rgba(0,0,0,0.12);
+  cursor:pointer;
+  transform-origin:center;
+  transition:transform .32s cubic-bezier(.2,.9,.3,1), background .28s ease, color .28s ease;
+}
+.toggle .icon{font-size:14px}
+[data-theme="light"] .toggle{background:#000;color:#fff}
+.card{transition:transform .36s ease,opacity .36s ease,filter .36s ease}
+
+
+[data-theme="light"] .btn:hover{box-shadow:0 30px 45px rgba(0,0,0,0.30);}
+
+[data-theme="dark"] .btn:hover{box-shadow:0 25px 35px rgba(255,255,255,0.14);}
+
+[data-theme="light"] .card{background:rgba(0,0,0,0.08) !important;}
+[data-theme="dark"] .card{background:rgba(255,255,255,0.08) !important;}
+
 </style>
 </head>
 <body data-theme="dark">
@@ -123,38 +156,82 @@ body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg-d
   </div>
 </main>
 
-<button class="toggle" id="themeToggle" aria-label="Toggle light and dark">Light</button>
+<button class="toggle" id="themeToggle" aria-label="Toggle light and dark"><span class="icon">◐</span><span class="mode-label" style="margin-left:4px">Dark</span></button>
+
 
 <script>
 /* Inject QR image via qrserver (no external libraries required) */
 (function generateQR(){
-  const container = document.getElementById('qrContainer');
-  const url = location.href;
-  const img = new Image();
-  img.alt = "QR";
-  img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(url);
-  img.style.maxWidth='100%';
-  img.style.height='auto';
-  container.appendChild(img);
+  try{
+    const container = document.getElementById('qrContainer');
+    if(container && !container.querySelector('img')){
+      const url = location.href;
+      const img = new Image();
+      img.alt = "QR";
+      img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(url);
+      img.style.maxWidth='100%';
+      img.style.height='auto';
+      container.appendChild(img);
+    }
+  }catch(e){console.warn(e)}
 })();
 
-/* Light/Dark toggle */
+/* Robust Light/Dark toggle with animation + card transition */
 const toggle = document.getElementById('themeToggle');
+const card = document.querySelector('.card');
 function setTheme(t){
-  if(t==='light'){ document.body.setAttribute('data-theme','light'); document.documentElement.style.setProperty('--bg-dark','#fff'); document.documentElement.style.setProperty('--text-dark','#111'); }
-  else { document.body.setAttribute('data-theme','dark'); document.documentElement.style.setProperty('--bg-dark','#000'); document.documentElement.style.setProperty('--text-dark','#fff'); }
-  toggle.textContent = (t==='light')? 'Dark' : 'Light';
+  // set data-theme
+  document.body.setAttribute('data-theme', t);
+  // update css variables for background/text (keeps compatibility)
+  if(t==='light'){
+    document.documentElement.style.setProperty('--bg-dark','#fff');
+    document.documentElement.style.setProperty('--text-dark','#111');
+  } else {
+    document.documentElement.style.setProperty('--bg-dark','#000');
+    document.documentElement.style.setProperty('--text-dark','#fff');
+  }
+  // update label text
+  const lbl = document.querySelector('.mode-label');
+  if(lbl) lbl.textContent = (t==='light')? 'Light' : 'Dark';
+  // animate toggle (scale+rotate to the right)
+  if(toggle){
+    toggle.style.transform = 'scale(1.06) rotate(3deg)';
+    setTimeout(()=> toggle.style.transform = '', 280);
+  }
+  // animate card: slight lift & opacity flash
+  if(card){
+    card.style.transform = 'translateY(-6px)';
+    card.style.opacity = '0.96';
+    setTimeout(()=>{ card.style.transform=''; card.style.opacity='1'; }, 320);
+  }
   localStorage.setItem('siteTheme', t);
 }
-toggle.addEventListener('click', ()=> { const cur = document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light'; setTheme(cur); });
-setTheme(localStorage.getItem('siteTheme')||'dark');
 
-/* Improve WhatsApp button contrast in light mode */
-const observer = new MutationObserver(()=> { 
+/* attach click */
+if(toggle){
+  toggle.addEventListener('click', ()=>{
+    const cur = document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    setTheme(cur);
+  });
+}
+
+/* initialize from localStorage or default to dark */
+document.addEventListener('DOMContentLoaded', ()=>{
+  const saved = localStorage.getItem('siteTheme') || 'dark';
+  setTheme(saved);
+});
+
+/* Improve WhatsApp button contrast in light mode (keeps existing observer) */
+const observer = new MutationObserver(()=> {
   const isLight = document.body.getAttribute('data-theme') === 'light';
-  if(isLight){ document.querySelectorAll('.btn.wa').forEach(b=> b.style.color='#fff'); }
+  if(isLight){
+    document.querySelectorAll('.btn.wa').forEach(b=> b.style.color='#fff');
+  } else {
+    document.querySelectorAll('.btn.wa').forEach(b=> b.style.color='');
+  }
 });
 observer.observe(document.body, { attributes: true });
 </script>
+
 </body>
 </html>
